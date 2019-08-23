@@ -1,0 +1,292 @@
+service: serverless-rest-api-with-dynamodb
+
+frameworkVersion: ">=1.1.0 <2.0.0"
+  
+provider:
+  name: aws
+  runtime: nodejs10.x
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+plugins:
+  - serverless-aws-documentation
+  - serverless-reqvalidator-plugin
+
+custom:
+  documentation:
+    info:
+      version: "1"
+      title: "To-Do API"
+      description: "This is the best API to manage To-Dos"
+      contact:
+        name: "Igor Sokolov"
+        url: "https://help42.blog/pages/about/"
+      license:
+        name: "MIT License"
+        url: "https://choosealicense.com/licenses/mit/"
+    
+    commonHeaders:
+      TodoCreatedAt:
+        name: Todo-CreatedAt
+        description: Date-time when ToDo was created. 
+        type: string
+        format: date-time
+
+      TodoUpdatedAt:
+        name: Todo-UpdatedAt
+        description: Date-time when ToDo was updated. 
+        type: string
+        format: date-time
+
+      ETag: 
+        name: ETag
+        description: ETag header as it is defined in https://tools.ietf.org/html/rfc7232
+        type: string
+    commonErrorResponses:
+      502Error:
+        statusCode: '502'
+        description: An error happend in an external persistance service 
+        responseModels:
+          "application/json": ErrorResponce
+      400Error:
+        statusCode: '400'
+        description: A validation error occured
+        responseModels:
+          "application/json": ErrorResponce  
+      404Error:
+        statusCode: '404'
+        description: A To-Do was not found
+        responseModels:
+          "application/json": ErrorResponce
+      412Error:
+        statusCode: '412'
+        description: An conditional update failed
+        responseModels:
+          "application/json": ErrorResponce
+    models:
+      -
+        name: ToDoCreate
+        contentType: "application/json"
+        schema:
+          type: object
+          properties:
+            text:
+              type: string
+          required:
+            - text
+      -
+        name: ToDo
+        contentType: "application/json"
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            text:
+              type: string
+            checked:
+              type: boolean
+          required:
+            - id
+            - text
+            - checked
+      -
+        name: ToDoArray
+        contentType: "application/json"
+        schema:
+          type: array
+          items:
+            $ref: "{{model: ToDo}}"
+      - 
+        name: ErrorResponce
+        contentType: "application/json"
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+          required:
+            - message
+
+functions:
+  create:
+    handler: todos/create.create
+    events:
+      - http:
+          path: todos
+          method: post
+          cors: true
+          reqValidatorName: 'RequestValidator'
+          documentation:
+            summary: Create a new To-Do
+            requestModels:
+               "application/json": ToDoCreate
+            methodResponses:
+              -
+                statusCode: '201'
+                description: A resource was created sucessfully
+                responseModels:
+                  "application/json": ToDo
+                responseHeaders:
+                  -
+                    name: Location
+                    description: Link to the created resource
+                    type: string
+                  - ${self:custom.documentation.commonHeaders.TodoCreatedAt}
+                  - ${self:custom.documentation.commonHeaders.TodoUpdatedAt}
+                  - ${self:custom.documentation.commonHeaders.ETag}
+              - ${self:custom.documentation.commonErrorResponses.502Error}
+              - ${self:custom.documentation.commonErrorResponses.400Error}
+
+  get:
+    handler: todos/get.get
+    events:
+      - http:
+          path: todos/{id}
+          method: get
+          cors: true
+          reqValidatorName: 'RequestValidator'
+          documentation:
+            summary: Get To-Do By id
+            pathParams:
+              -
+                name: id
+                description: An ID of To-Do
+                required: true    
+                type: string           
+            methodResponses:
+              -
+                statusCode: '200'
+                description: A To-Do was found
+                responseModels:
+                  "application/json": ToDo
+                responseHeaders:
+                  - ${self:custom.documentation.commonHeaders.TodoCreatedAt}
+                  - ${self:custom.documentation.commonHeaders.TodoUpdatedAt}
+                  - ${self:custom.documentation.commonHeaders.ETag}
+              - ${self:custom.documentation.commonErrorResponses.502Error}
+              - ${self:custom.documentation.commonErrorResponses.404Error}
+
+  update:
+    handler: todos/update.update
+    events:
+      - http:
+          path: todos/{id}
+          method: put
+          cors: true
+          reqValidatorName: 'RequestValidator'
+          documentation:
+            summary: Update a To-Do
+            pathParams:
+              -
+                name: id
+                description: An ID of To-Do to udpate
+                required: true  
+                type: string 
+            requestHeaders:
+              - 
+                name: If-Match
+                description: A conditional update header according to https://tools.ietf.org/html/rfc7232       
+                required: false   
+                type: string 
+            requestModels:
+               "application/json": ToDo
+            methodResponses:
+              -
+                statusCode: '204'
+                description: A To-Do was sucessfully updated
+                # responseModels:
+                #   "application/json": ToDo
+                responseHeaders:
+                  - ${self:custom.documentation.commonHeaders.TodoCreatedAt}
+                  - ${self:custom.documentation.commonHeaders.TodoUpdatedAt}
+                  - ${self:custom.documentation.commonHeaders.ETag}
+              - ${self:custom.documentation.commonErrorResponses.502Error}
+              - ${self:custom.documentation.commonErrorResponses.404Error}
+              - ${self:custom.documentation.commonErrorResponses.412Error}
+
+  delete:
+    handler: todos/delete.delete
+    events:
+      - http:
+          path: todos/{id}
+          method: delete
+          cors: true
+          reqValidatorName: 'RequestValidator'
+          documentation:
+            summary: Delete a To-Do
+            pathParams:
+              -
+                name: id
+                description: An ID of To-Do to delete
+                required: true  
+                type: string 
+            methodResponses:
+              -
+                statusCode: '204'
+                description: A To-Do was sucessfully deleted
+              - ${self:custom.documentation.commonErrorResponses.502Error}
+              - ${self:custom.documentation.commonErrorResponses.404Error}
+
+  list:
+    handler: todos/list.list
+    events:
+      - http:
+          path: todos
+          method: get
+          cors: true
+          reqValidatorName: 'RequestValidator'
+          documentation:
+            summary: List and filter existing To-Dos
+            queryParams:
+              -
+                name: checked
+                description: A filter by check field
+                required: false  
+                type: boolean
+            methodResponses:
+              -
+                statusCode: '200'
+                description: An operation is sucessfully completed
+                responseModels:
+                  "application/json": ToDoArray
+              - ${self:custom.documentation.commonErrorResponses.502Error}
+resources:
+  Resources:
+    TodosDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+
+    RequestValidator:  
+      Type: "AWS::ApiGateway::RequestValidator"
+      Properties:
+        Name: 'my-req-validator'
+        RestApiId: 
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: true 
+

@@ -1,0 +1,237 @@
+---
+swagger: "2.0"
+info:
+  version: "2019-08-23T02:21:01Z"
+  title: "dev-serverless-rest-api-with-dynamodb"
+host: "XXXXXXXX.execute-api.us-east-1.amazonaws.com"
+basePath: "/dev"
+schemes:
+- "https"
+paths:
+  /todos:
+    get:
+      summary: "List and filter existing To-Dos"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "checked"
+        in: "query"
+        description: "A filter by check field"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "An operation is sucessfully completed"
+          schema:
+            $ref: "#/definitions/ToDoArray"
+        502:
+          description: "An error happend in an external persistance service"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+    post:
+      summary: "Create a new To-Do"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "ToDoCreate"
+        required: true
+        schema:
+          $ref: "#/definitions/ToDoCreate"
+      responses:
+        201:
+          description: "A resource was created sucessfully"
+          schema:
+            $ref: "#/definitions/ToDo"
+          headers:
+            ETag:
+              type: "string"
+              description: "ETag header as it is defined in https://tools.ietf.org/html/rfc7232"
+            Todo-UpdatedAt:
+              type: "string"
+              description: "Date-time when ToDo was updated."
+            Todo-CreatedAt:
+              type: "string"
+              description: "Date-time when ToDo was created."
+            Location:
+              type: "string"
+              description: "Link to the created resource"
+        400:
+          description: "A validation error occured"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+        502:
+          description: "An error happend in an external persistance service"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Credentials:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+  /todos/{id}:
+    get:
+      summary: "Get To-Do By id"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "An ID of To-Do"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "A To-Do was found"
+          schema:
+            $ref: "#/definitions/ToDo"
+          headers:
+            ETag:
+              type: "string"
+              description: "ETag header as it is defined in https://tools.ietf.org/html/rfc7232"
+            Todo-UpdatedAt:
+              type: "string"
+              description: "Date-time when ToDo was updated."
+            Todo-CreatedAt:
+              type: "string"
+              description: "Date-time when ToDo was created."
+        502:
+          description: "An error happend in an external persistance service"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+        404:
+          description: "A To-Do was not found"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+    put:
+      summary: "Update a To-Do"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "If-Match"
+        in: "header"
+        description: "A conditional update header according to https://tools.ietf.org/html/rfc7232"
+        required: false
+        type: "string"
+      - name: "id"
+        in: "path"
+        description: "An ID of To-Do to udpate"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "ToDo"
+        required: true
+        schema:
+          $ref: "#/definitions/ToDo"
+      responses:
+        412:
+          description: "An conditional update failed"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+        204:
+          description: "A To-Do was sucessfully updated"
+          headers:
+            ETag:
+              type: "string"
+              description: "ETag header as it is defined in https://tools.ietf.org/html/rfc7232"
+            Todo-UpdatedAt:
+              type: "string"
+              description: "Date-time when ToDo was updated."
+            Todo-CreatedAt:
+              type: "string"
+              description: "Date-time when ToDo was created."
+        502:
+          description: "An error happend in an external persistance service"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+        404:
+          description: "A To-Do was not found"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+    delete:
+      summary: "Delete a To-Do"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "An ID of To-Do to delete"
+        required: true
+        type: "string"
+      responses:
+        204:
+          description: "A To-Do was sucessfully deleted"
+        502:
+          description: "An error happend in an external persistance service"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+        404:
+          description: "A To-Do was not found"
+          schema:
+            $ref: "#/definitions/ErrorResponce"
+    options:
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Credentials:
+              type: "string"
+            Access-Control-Allow-Headers:
+              type: "string"
+definitions:
+  ToDo:
+    type: "object"
+    required:
+    - "checked"
+    - "id"
+    - "text"
+    properties:
+      checked:
+        type: "boolean"
+      id:
+        type: "string"
+        format: "uuid"
+      text:
+        type: "string"
+  ToDoArray:
+    type: "array"
+    items:
+      $ref: "#/definitions/ToDo"
+  ToDoCreate:
+    type: "object"
+    required:
+    - "text"
+    properties:
+      text:
+        type: "string"
+  ErrorResponce:
+    type: "object"
+    required:
+    - "message"
+    properties:
+      message:
+        type: "string"

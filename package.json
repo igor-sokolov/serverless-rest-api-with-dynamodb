@@ -1,0 +1,15 @@
+{
+  "name": "aws-node-rest-api-with-dynamodb",
+  "version": "1.0.0",
+  "description": "Serverless CRUD service exposing a REST HTTP interface",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "etag": "1.8.1",
+    "serverless-reqvalidator-plugin": "^1.0.3",
+    "uuid": "^2.0.3"
+  },
+  "devDependencies": {
+    "serverless-aws-documentation": "^1.1.0"
+  }
+}
